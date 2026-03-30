@@ -3,154 +3,103 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ghina's Heart Catch</title>
+    <title>Ghina's Eternal Garden</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { margin: 0; overflow: hidden; background: #050505; font-family: 'Inter', sans-serif; color: white; }
-        canvas { display: block; }
-        .game-ui {
+        body { margin: 0; background: #020202; overflow: hidden; font-family: 'Playfair Display', serif; }
+        .ui-layer {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; display: flex; flex-direction: column; align-items: center;
+            display: flex; flex-direction: column; justify-content: space-between;
+            pointer-events: none; padding: 40px;
         }
-        #score-board { font-size: 2rem; margin-top: 20px; font-weight: bold; color: #ff69b4; text-shadow: 0 0 10px #ff69b4; }
-        #message-box { font-size: 1.5rem; margin-top: auto; margin-bottom: 100px; text-align: center; max-width: 80%; opacity: 0; transition: 0.5s; }
-        .start-screen {
-            position: absolute; inset: 0; background: rgba(0,0,0,0.85);
-            display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100;
-        }
+        .instruction { color: rgba(255,192,203,0.6); letter-spacing: 3px; text-transform: uppercase; font-size: 0.8rem; }
+        #ghina-text { font-size: 5rem; color: white; text-shadow: 0 0 30px #ff69b4; opacity: 0; }
     </style>
 </head>
 <body>
 
-    <div id="start-screen" class="start-screen">
-        <h1 class="text-6xl font-serif mb-6 text-pink-500">For Ghina</h1>
-        <p class="text-gray-400 mb-8">Catch the falling stars to reveal my heart.</p>
-        <button id="start-btn" class="px-10 py-4 border-2 border-pink-500 rounded-full hover:bg-pink-500 transition-all pointer-events-auto">Start the Journey</button>
+    <div class="ui-layer">
+        <div class="instruction">Move to plant flowers in our garden</div>
+        <div id="ghina-text" class="text-center self-center">GHINA</div>
+        <div class="instruction text-right">Every spark is a moment with you</div>
     </div>
-
-    <div class="game-ui">
-        <div id="score-board">Memories Collected: 0</div>
-        <div id="message-box"></div>
-    </div>
-
-    <audio id="bg-music" loop>
-        <source src="YOUR_ARABIC_MUSIC_URL.mp3" type="audio/mpeg">
-    </audio>
 
     <script>
-        let score = 0;
-        let gameActive = false;
-        const messages = [
-            "Every star is a reason why I love you...",
-            "Your smile is my favorite sight in the world.",
-            "Ghina, you are my soul's twin.",
-            "أنتِ كل حياتي (You are my whole life)",
-            "LEVEL COMPLETE: My heart is yours forever."
-        ];
-
-        // --- Three.js Setup ---
         const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // Player Heart (using a sphere for simplicity, but colored pink/red)
-        const playerGeo = new THREE.SphereGeometry(0.3, 32, 32);
-        const playerMat = new THREE.MeshPhongMaterial({ color: 0xff1493, emissive: 0xff69b4 });
-        const player = new THREE.Mesh(playerGeo, playerMat);
-        scene.add(player);
+        // Create a "Flower" (A pretty 3D Diamond/Crystal shape)
+        const geometry = new THREE.OctahedronGeometry(0.1, 0);
+        const material = new THREE.MeshPhongMaterial({ 
+            color: 0xff69b4, 
+            emissive: 0xff1493,
+            shininess: 100,
+            transparent: true,
+            opacity: 0.8
+        });
 
+        const flowers = [];
         const light = new THREE.PointLight(0xffffff, 1, 100);
-        light.position.set(0, 0, 10);
+        light.position.set(10, 10, 10);
         scene.add(light);
-        scene.add(new THREE.AmbientLight(0x404040));
+        scene.add(new THREE.AmbientLight(0x202020));
 
         camera.position.z = 5;
 
-        // --- Collectibles Logic ---
-        const items = [];
-        function createItem() {
-            const geo = new THREE.OctahedronGeometry(0.2);
-            const mat = new THREE.MeshPhongMaterial({ color: 0xffd700 });
-            const item = new THREE.Mesh(geo, mat);
-            item.position.x = (Math.random() - 0.5) * 8;
-            item.position.y = 6;
-            item.position.z = 0;
-            scene.add(item);
-            items.push(item);
-        }
+        // Interaction Logic
+        window.addEventListener('mousemove', (event) => {
+            // Convert mouse to 3D space
+            const x = (event.clientX / window.innerWidth) * 2 - 1;
+            const y = -(event.clientY / window.innerHeight) * 2 + 1;
+            
+            const vector = new THREE.Vector3(x, y, 0.5);
+            vector.unproject(camera);
+            const dir = vector.sub(camera.position).normalize();
+            const distance = -camera.position.z / dir.z;
+            const pos = camera.position.clone().add(dir.multiplyScalar(distance));
 
-        // --- Mouse Tracking ---
-        const mouse = new THREE.Vector2();
-        window.addEventListener('mousemove', (e) => {
-            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            // Create a new "flower" at mouse position
+            const flower = new THREE.Mesh(geometry, material.clone());
+            flower.position.copy(pos);
+            flower.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, 0);
+            
+            // Random color shift (Pink to Gold)
+            if(Math.random() > 0.5) flower.material.color.setHex(0xffd700);
+            
+            scene.add(flower);
+            flowers.push({
+                mesh: flower,
+                velocity: new THREE.Vector3((Math.random()-0.5)*0.01, (Math.random()-0.5)*0.01, (Math.random()-0.5)*0.01),
+                rotationSpeed: Math.random() * 0.02
+            });
+
+            // Keep only the last 200 flowers for performance
+            if(flowers.length > 200) {
+                const old = flowers.shift();
+                scene.remove(old.mesh);
+            }
         });
 
-        // --- Main Game Loop ---
+        // Intro Animation
+        gsap.to("#ghina-text", { opacity: 1, duration: 3, delay: 1, ease: "power2.inOut" });
+
         function animate() {
             requestAnimationFrame(animate);
             
-            if (gameActive) {
-                // Smoothly move player to mouse
-                player.position.x += (mouse.x * 4 - player.position.x) * 0.1;
-                player.position.y += (mouse.y * 3 - player.position.y) * 0.1;
+            flowers.forEach(f => {
+                f.mesh.position.add(f.velocity);
+                f.mesh.rotation.y += f.rotationSpeed;
+                f.mesh.rotation.x += f.rotationSpeed;
+            });
 
-                items.forEach((item, index) => {
-                    item.position.y -= 0.05; // Falling speed
-                    item.rotation.y += 0.05;
-
-                    // Collision detection
-                    if (player.position.distanceTo(item.position) < 0.5) {
-                        scene.remove(item);
-                        items.splice(index, 1);
-                        updateScore();
-                    }
-
-                    // Remove if off screen
-                    if (item.position.y < -5) {
-                        scene.remove(item);
-                        items.splice(index, 1);
-                    }
-                });
-
-                if (Math.random() < 0.03) createItem();
-            }
-            
             renderer.render(scene, camera);
         }
-
-        function updateScore() {
-            score++;
-            document.getElementById('score-board').innerText = `Memories Collected: ${score}`;
-            
-            if (score % 5 === 0) {
-                const msgIndex = Math.min(Math.floor(score / 5) - 1, messages.length - 1);
-                const box = document.getElementById('message-box');
-                box.innerText = messages[msgIndex];
-                gsap.fromTo(box, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 1 });
-                
-                // Visual Flair
-                gsap.to(player.scale, { x: 2, y: 2, z: 2, duration: 0.2, yoyo: true, repeat: 1 });
-            }
-
-            if (score >= 25) {
-                gameActive = false;
-                document.getElementById('message-box').innerHTML = "<span class='text-4xl text-pink-400'>I Love You, Ghina! ❤️</span>";
-                gsap.to(camera.position, { z: 2, duration: 3 });
-            }
-        }
-
-        // --- Start Game ---
-        document.getElementById('start-btn').addEventListener('click', () => {
-            gameActive = true;
-            document.getElementById('start-screen').style.display = 'none';
-            document.getElementById('bg-music').play();
-            animate();
-        });
+        animate();
 
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
